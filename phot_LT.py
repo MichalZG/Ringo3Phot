@@ -22,7 +22,6 @@ gain_key = 'GAIN'
 exp_key = 'EXPTIME'
 
 #dirs
-ref_image_folder = '/data_base_LT/'
 work_dir = '/home/pi/kolchoz/LT/exo2013/'
 output_dir = work_dir+'output/'
 
@@ -226,7 +225,7 @@ sources_list = {}
 not_measured = []
 
 #read database sources file
-sources_file = np.loadtxt(script_path+ref_image_folder+'sources2.dat',\
+sources_file = np.loadtxt(script_path+'sources.dat',\
 			 dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),\
 	                 'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
