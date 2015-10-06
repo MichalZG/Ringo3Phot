@@ -9,35 +9,43 @@ import astropy.wcs
 import subprocess as sub
 from alipy import pysex
 import time
+import ConfigParser
+import json
 from astropy.wcs import WCS
+
 warnings.filterwarnings('ignore')
-
-
-#extension
-extension = '.fits'
-
-#frame keywords
-time_key = 'MJD'
-gain_key = 'GAIN'
-exp_key = 'EXPTIME'
-
-#dirs
-work_dir = '/home/pi/kolchoz/LT/exo2013/'
-output_dir = work_dir+'output/'
-
-#sextractor param
-detect_tresh = 2.0
-analysis_thresh = 2.0
-backphoto_thick = 64 #thickness of annulus
-
-#align
-n = 500 # Number of brightest stars of each image to consider (default 500)
-visu = False
-makepng = False
-skipsaturated = False
-
 script_path = os.path.dirname(os.path.realpath(__file__))
-files_to_rm = ['*.coo']
+work_dir = os.path.curdir
+
+
+class Config():
+  def __init__(self):
+    config = ConfigParser.RawConfigParser()
+    config.read(os.path.join(script_path, 'config.cfg'))
+    self.config = config
+    
+    # files
+    self.extension = config.get('files', 'extension')
+    self.files_to_rm = config.get('files', 'files_to_rm').split(',')
+    self.sources_file = config.get('files', 'sources_file')
+    
+    # keywords
+    self.time_key = config.get('keywords', 'time_key')
+    self.gain_key = config.get('keywords', 'gain_key')
+    self.exp_key = config.get('keywords', 'exp_key')
+    
+    #dirs
+    self.output_dir_name = config.get('dirs', 'output_dir')
+ 
+    #sextractor
+    self.phot_type = config.get('sextractor', 'phot_type')
+    self.verbose_type = config.get('sextractor', 'verbose_type')
+    self.detect_tresh = config.getfloat('sextractor', 'detect_tresh')
+    self.analysis_thresh = config.getfloat('sextractor', 'analysis_thresh')
+    self.backphoto_type = config.get('sextractor', 'backphoto_type')
+    self.backphoto_thick = config.get('sextractor', 'backphoto_thick')
+    self.assoc_radius = config.getfloat('sextractor', 'assoc_radius')
+    
 
 class Image:
   def __init__(self, image_name, image_star, image_filter, image_time, image_exp_time, image_hdu, image_header, image_data):
@@ -49,7 +57,7 @@ class Image:
     self.image_hdu = image_hdu
     self.image_header = image_header
     self.image_data = image_data
-
+    
     self.image_base_name = str(self.image_name).split(".")[0] # with dir, without extension
     self.image_base_base_name = str(self.image_base_name).split('/')[-1] # only file name without dir and extension
 
@@ -61,24 +69,26 @@ class Image:
     return np.array([[px_source, py_source, 1]])
 
   def flux_measure(self):
-
-    hdu_flux = fits.open(work_dir+self.image_base_base_name+extension)
+    
+    file_to_sex = self.image_name
+    coo_file_name = 'coo.coo'
+    hdu_flux = fits.open(file_to_sex)
     hdr_flux = hdu_flux[0].header
     pix_coo_array = self.world_2_pix()
-    np.savetxt(work_dir+self.image_base_base_name+'.coo', pix_coo_array, fmt='%f') #save txt file with pix coordinates for sextractor
+    np.savetxt(coo_file_name, pix_coo_array, fmt='%f') #save txt file with pix coordinates for sextractor
 
-    cat = pysex.run(work_dir+self.image_base_base_name+extension, keepcat=False, #run sextractor
+    cat = pysex.run(file_to_sex, keepcat=False, #run sextractor
 		     params=['FLUX_BEST', 'FLUXERR_BEST', 'VECTOR_ASSOC(1)'], #values list in sextractor output
-		     conf_args={'VERBOSE_TYPE':'QUIET',
-				'BACKPHOTO_TYPE':'LOCAL',
-	                        'BACKPHOTO_THICK':backphoto_thick,
-		                'DETECT_THRESH':detect_tresh,
-	                        'ANALYSIS_THRESH':analysis_thresh,
-	                        'GAIN':float(self.image_header[gain_key]),
-	                        'ASSOC_RADIUS':4.0,
+		     conf_args={'VERBOSE_TYPE':cfg.verbose_type,
+				'BACKPHOTO_TYPE':cfg.backphoto_type,
+	                        'BACKPHOTO_THICK':cfg.backphoto_thick,
+		                'DETECT_THRESH':cfg.detect_tresh,
+	                        'ANALYSIS_THRESH':cfg.analysis_thresh,
+	                        'GAIN':float(self.image_header[cfg.gain_key]),
+	                        'ASSOC_RADIUS':cfg.assoc_radius,
 	                        'ASSOC_PARAMS':'1,2',
 	                        'ASSOC_DATA':'3',
-                                'ASSOC_NAME':work_dir+self.image_base_base_name+'.coo'})
+                                'ASSOC_NAME':coo_file_name})
 
     if len(cat) > 0:
       print cat[0][0], cat[1][0]
@@ -160,7 +170,7 @@ class Star:
     tbhdu = fits.new_table(cols)
     prihdr = fits.Header()
     prihdr['OBJECT'] = self.star_name
-    prihdr['TIME'] = time_key
+    prihdr['TIME'] = cfg.time_key
     prihdu = fits.PrimaryHDU(header=prihdr)
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(output_dir+(self.star_name)+'.fits', clobber=True) #write output to fits table
@@ -170,8 +180,8 @@ class Star:
 
 def cleaning():
   print 'cleaning.....'
-  for i in files_to_rm:
-    files = glob.glob(work_dir+i)
+  for i in cfg.files_to_rm:
+    files = glob.glob(os.path.join(work_dir, i))
     for j in files:
       os.remove(j)
 
@@ -215,6 +225,13 @@ def save_not_measured_list(not_measured):
   #np.savetxt(output_dir+'not_measured.dat', not_measured, delimiter=' ', fmt="%s") # write name of not measured images to txt
 
 
+
+
+cfg = Config()
+output_dir = os.path.join(work_dir, cfg.output_dir_name)
+
+
+
 try:
   os.mkdir(output_dir)
 except OSError:
@@ -225,12 +242,12 @@ sources_list = {}
 not_measured = []
 
 #read database sources file
-sources_file = np.loadtxt(script_path+'sources.dat',\
+sources_file = np.loadtxt(os.path.join(script_path, cfg.sources_file),\
 			 dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),\
 	                 'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
 
-images = sorted(glob.glob(work_dir+"*"+extension)) #create image list
+images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
 object_list = object_check(images) #create object list
 sources_list_check(sources_file, object_list) #check if each object is in source list
 
@@ -244,8 +261,8 @@ for image in images:
   filter_name = image.split('/')[-1][0].upper()
   object_name = hdr['OBJECT'].upper()+'_'+filter_name
 
-  obs_time = hdr[time_key]
-  exp_time = hdr[exp_key]
+  obs_time = hdr[cfg.time_key]
+  exp_time = hdr[cfg.exp_key]
 
   im = Image(image, object_name, filter_name, obs_time, exp_time, hdu, hdr, data)
 
@@ -255,7 +272,6 @@ for image in images:
     coord_tab = sources_list[object_name]
     star = Star(object_name, coord_tab[0], coord_tab[1], coord_tab[2], coord_tab[3])
     star_list.update({object_name:star})
-
   im.flux_measure()
 
 
