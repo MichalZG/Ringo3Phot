@@ -23,20 +23,20 @@ class Config():
     config = ConfigParser.RawConfigParser()
     config.read(os.path.join(script_path, 'config.cfg'))
     self.config = config
-    
+
     # files
     self.extension = config.get('files', 'extension')
     self.files_to_rm = config.get('files', 'files_to_rm').split(',')
     self.sources_file = config.get('files', 'sources_file')
-    
+
     # keywords
     self.time_key = config.get('keywords', 'time_key')
     self.gain_key = config.get('keywords', 'gain_key')
     self.exp_key = config.get('keywords', 'exp_key')
-    
+
     #dirs
     self.output_dir_name = config.get('dirs', 'output_dir')
- 
+
     #sextractor
     self.phot_type = config.get('sextractor', 'phot_type')
     self.verbose_type = config.get('sextractor', 'verbose_type')
@@ -45,10 +45,11 @@ class Config():
     self.backphoto_type = config.get('sextractor', 'backphoto_type')
     self.backphoto_thick = config.get('sextractor', 'backphoto_thick')
     self.assoc_radius = config.getfloat('sextractor', 'assoc_radius')
-    
+
 
 class Image:
-  def __init__(self, image_name, image_star, image_filter, image_time, image_exp_time, image_hdu, image_header, image_data):
+  def __init__(self, image_name, image_star, image_filter, image_time,
+               image_exp_time, image_hdu, image_header, image_data):
     self.image_name = image_name
     self.image_star = image_star
     self.image_filter = image_filter
@@ -57,19 +58,20 @@ class Image:
     self.image_hdu = image_hdu
     self.image_header = image_header
     self.image_data = image_data
-    
+
     self.image_base_name = str(self.image_name).split(".")[0] # with dir, without extension
     self.image_base_base_name = str(self.image_base_name).split('/')[-1] # only file name without dir and extension
 
   def world_2_pix(self): #convert WCS to pix
 
     w = WCS(self.image_header)
-    px_source, py_source = w.wcs_world2pix(float(star.ra_source), float(star.dec_source), 1)
+    px_source, py_source = w.wcs_world2pix(float(star.ra_source),
+                                           float(star.dec_source), 1)
 
     return np.array([[px_source, py_source, 1]])
 
   def flux_measure(self):
-    
+
     file_to_sex = self.image_name
     coo_file_name = 'coo.coo'
     hdu_flux = fits.open(file_to_sex)
@@ -166,7 +168,8 @@ class Star:
     c12 = fits.Column(name='MOON_FRAC', format='D', array=tab[:,11])
     c13 = fits.Column(name='MOON_DIST', format='D', array=tab[:,12])
 
-    cols = fits.ColDefs([c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13])
+    cols = fits.ColDefs([c1, c2, c3, c4, c5, c6, c7,
+                         c8, c9, c10, c11, c12, c13])
     tbhdu = fits.new_table(cols)
     prihdr = fits.Header()
     prihdr['OBJECT'] = self.star_name
@@ -175,8 +178,10 @@ class Star:
     thdulist = fits.HDUList([prihdu, tbhdu])
     thdulist.writeto(output_dir+(self.star_name)+'.fits', clobber=True) #write output to fits table
 
-    txt_header = 'Time, source_counts, err, filter, rotor, phase, airmass, rotangle, rotskypa, exptime, seeing, moon_frac, moon_dist'
-    np.savetxt(output_dir+(self.star_name)+'.csv', tab, delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
+    txt_header = ('Time, source_counts, err, filter, rotor, phase, airmass,'
+                  'rotangle, rotskypa, exptime, seeing, moon_frac, moon_dist')
+    np.savetxt(output_dir+(self.star_name)+'.csv',tab,
+               delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
 
 def cleaning():
   print 'cleaning.....'
@@ -222,14 +227,12 @@ def sources_list_check(sources_file, object_list):
 
 def save_not_measured_list(not_measured):
   pass
-  #np.savetxt(output_dir+'not_measured.dat', not_measured, delimiter=' ', fmt="%s") # write name of not measured images to txt
-
-
+  #np.savetxt(output_dir+'not_measured.dat',
+  #            not_measured, delimiter=' ', fmt="%s") # write name of not measured images to txt
 
 
 cfg = Config()
 output_dir = os.path.join(work_dir, cfg.output_dir_name)
-
 
 
 try:
@@ -244,7 +247,7 @@ not_measured = []
 #read database sources file
 sources_file = np.loadtxt(os.path.join(script_path, cfg.sources_file),\
 			 dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),\
-	                 'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
+	                'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
 
 images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
@@ -264,13 +267,15 @@ for image in images:
   obs_time = hdr[cfg.time_key]
   exp_time = hdr[cfg.exp_key]
 
-  im = Image(image, object_name, filter_name, obs_time, exp_time, hdu, hdr, data)
+  im = Image(image, object_name, filter_name,
+             obs_time, exp_time, hdu, hdr, data)
 
   if object_name in star_list:
     star = star_list[object_name]
   else:
     coord_tab = sources_list[object_name]
-    star = Star(object_name, coord_tab[0], coord_tab[1], coord_tab[2], coord_tab[3])
+    star = Star(object_name, coord_tab[0],
+                coord_tab[1], coord_tab[2], coord_tab[3])
     star_list.update({object_name:star})
   im.flux_measure()
 
