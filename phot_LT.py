@@ -1,16 +1,10 @@
 import os
-import shutil
 import glob
 import astropy.io.fits as fits
-import astropy.wcs as wcs
 import warnings
 import numpy as np
-import astropy.wcs
-import subprocess as sub
 from alipy import pysex
-import time
 import ConfigParser
-import json
 from astropy.wcs import WCS
 
 warnings.filterwarnings('ignore')
@@ -180,8 +174,9 @@ class Star:
 
     txt_header = ('Time, source_counts, err, filter, rotor, phase, airmass,'
                   'rotangle, rotskypa, exptime, seeing, moon_frac, moon_dist')
-    np.savetxt(output_dir+(self.star_name)+'.csv',tab,
+    np.savetxt(output_dir+(self.star_name)+'.csv', tab,
                delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
+
 
 def cleaning():
   print 'cleaning.....'
@@ -189,6 +184,7 @@ def cleaning():
     files = glob.glob(os.path.join(work_dir, i))
     for j in files:
       os.remove(j)
+
 
 def object_check(images):
   object_list = []
@@ -207,6 +203,7 @@ def object_check(images):
 
   return object_list
 
+
 def sources_list_check(sources_file, object_list):
   temp = []
   miss_object = []
@@ -218,7 +215,7 @@ def sources_list_check(sources_file, object_list):
       pass
     else:
       if obj not in miss_object:
-	miss_object.append(obj)
+        miss_object.append(obj)
 
   if len(miss_object) > 0:
     for miss in miss_object:
@@ -245,9 +242,10 @@ sources_list = {}
 not_measured = []
 
 #read database sources file
-sources_file = np.loadtxt(os.path.join(script_path, cfg.sources_file),\
-			 dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),\
-	                'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
+sources_file = np.loadtxt(
+    os.path.join(script_path, cfg.sources_file),
+    dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),
+           'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
 
 images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
@@ -255,7 +253,7 @@ object_list = object_check(images) #create object list
 sources_list_check(sources_file, object_list) #check if each object is in source list
 
 for source in sources_file:
-  sources_list.update({source[0]:[source[1], source[2], source[3], source[4]]})
+  sources_list.update({source[0]: [source[1], source[2], source[3], source[4]]})
 
 for image in images:
   hdu = fits.open(image, mode='update')
@@ -276,7 +274,7 @@ for image in images:
     coord_tab = sources_list[object_name]
     star = Star(object_name, coord_tab[0],
                 coord_tab[1], coord_tab[2], coord_tab[3])
-    star_list.update({object_name:star})
+    star_list.update({object_name: star})
   im.flux_measure()
 
 
