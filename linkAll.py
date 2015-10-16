@@ -29,6 +29,6 @@ except OSError:
 fileList = find(ext, workPath)
 for fileToLink in fileList:
     fileName = fileToLink.split('/')[-1]
-    print fileToLink
     os.symlink(fileToLink,
                os.path.join(workPath, outDirName, fileName))
+print 'Done'
