@@ -24,7 +24,7 @@ class Config():
     self.extension = config.get('files', 'extension')
     self.files_to_rm = config.get('files', 'files_to_rm').split(',')
     self.sources_file = config.get('files', 'sources_file')
-
+    self.sources_dict = config.get('files', 'sources_dict')
     # keywords
     self.time_key = config.get('keywords', 'time_key')
     self.gain_key = config.get('keywords', 'gain_key')
@@ -198,7 +198,7 @@ def object_check(images):
     if len(hdu) > 1:
       del(hdu[1:len(hdu)])
       hdu.flush()
-    obj = str(hdr['OBJECT'].upper()+'_'+filter_name)
+    obj = str(hdr['OBJECT'].upper())
 
     if obj not in object_list:
       object_list.append(obj)
@@ -206,29 +206,42 @@ def object_check(images):
   return object_list
 
 
-def sources_list_check(sources_file, object_list):
-  temp = []
-  miss_object = []
-  for source in sources_file:
-    temp.append(source[0])
-    print source[0]
-  for obj in object_list:
-    if obj in temp:
-      pass
-    else:
-      if obj not in miss_object:
-        miss_object.append(obj)
+def sources_list_check(sources_file, object_list, sourcesDict):
+    temp = []
+    miss_object = []
+    objTest = False
+    for source in sources_file:
+        temp.append(source[0])
+        print source[0]
+    for obj in object_list:
+        print 'object', obj
+        if obj in temp:
+            objTest = True
+        else:
+            for row in sourcesDict:
+                print row[1].split(',')
+                if obj in row[1].split(','):
+                    objTest = True
+                    break
+        if objTest == False:
+            if obj not in miss_object:
+                print obj
+                miss_object.append(obj)
 
-  if len(miss_object) > 0:
-    for miss in miss_object:
-      print miss, 'not found in source file'
-    exit()
+    if len(miss_object) > 0:
+        for miss in miss_object:
+            print miss, 'not found in source file'
+        exit()
 
 def save_not_measured_list(not_measured):
   pass
   #np.savetxt(output_dir+'not_measured.dat',
   #            not_measured, delimiter=' ', fmt="%s") # write name of not measured images to txt
 
+def createObject(object_name, coord_tab):
+    star = Star(object_name, coord_tab[0],
+                coord_tab[1], coord_tab[2], coord_tab[3])
+    return star
 
 cfg = Config()
 output_dir = os.path.join(work_dir, cfg.output_dir_name)
@@ -237,7 +250,8 @@ output_dir = os.path.join(work_dir, cfg.output_dir_name)
 try:
   os.mkdir(output_dir)
 except OSError:
-  pass
+    pass
+
 
 star_list = {}
 sources_list = {}
@@ -249,39 +263,49 @@ sources_file = np.loadtxt(
     dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),
            'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
+sourcesDict = np.loadtxt(
+    os.path.join(script_path, cfg.sources_dict), dtype='string', delimiter=' ')
 
 images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
 object_list = object_check(images) #create object list
-sources_list_check(sources_file, object_list) #check if each object is in source list
+sources_list_check(sources_file, object_list, sourcesDict) #check if each object is in source list
 
 for source in sources_file:
   sources_list.update({source[0]: [source[1], source[2], source[3], source[4]]})
 
 for image in images:
-  hdu = fits.open(image, mode='update')
-  hdr = hdu[0].header
-  data = hdu[0].data
-  filter_name = image.split('/')[-1][0].upper()
-  object_name = hdr['OBJECT'].upper()+'_'+filter_name
+    hdu = fits.open(image, mode='update')
+    hdr = hdu[0].header
+    data = hdu[0].data
+    filter_name = image.split('/')[-1][0].upper()
+    object_name = hdr['OBJECT'].upper()
 
-  obs_time = hdr[cfg.time_key]
-  exp_time = hdr[cfg.exp_key]
+    obs_time = hdr[cfg.time_key]
+    exp_time = hdr[cfg.exp_key]
 
-  im = Image(image, object_name, filter_name,
-             obs_time, exp_time, hdu, hdr, data)
+    im = Image(image, object_name, filter_name,
+               obs_time, exp_time, hdu, hdr, data)
 
-  if object_name in star_list:
-    star = star_list[object_name]
-  else:
-    coord_tab = sources_list[object_name]
-    star = Star(object_name, coord_tab[0],
-                coord_tab[1], coord_tab[2], coord_tab[3])
-    star_list.update({object_name: star})
-  im.flux_measure()
+    if object_name in star_list:
+        star = star_list[object_name]
+    else:
+        try:
+            coord_tab = sources_list[object_name]
+            star_list.update({object_name: star})
+        except KeyError:
+            for row in sourcesDict:
+                if object_name in row[1].split(','):
+                    coord_tab = sources_list[row[0]]
+                    star = createObject(row[0], coord_tab)
+                    star_list.update({object_name:star})
+                    break
+                else:
+                    "something wrong"
+    im.flux_measure()
 
 
 for obj in star_list.iteritems(): #save output for each object
-  obj[1].save_flux_table()
+    obj[1].save_flux_table()
 
 cleaning() #remove temp files
 save_not_measured_list(not_measured)
