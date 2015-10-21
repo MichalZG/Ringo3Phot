@@ -104,7 +104,6 @@ class Image:
         color_filter = str(self.image_filter)
         rotangle = str(self.image_header['ROTANGLE'])
         rotskypa = str(self.image_header['ROTSKYPA'])
-        exptime = str(self.image_header['EXPTIME'])
 
         try:
             rotor = str(self.image_header['RROTPOS'])
@@ -147,36 +146,40 @@ class Star:
         self.star_points = np.append(self.star_points, image_output, axis=0)
 
     def save_flux_table(self):
-        tab = np.delete(self.star_points, (0), axis=0)
+        for filter_name in ['D', 'E', 'F']:
+            tab = self.star_points[np.where(
+                self.star_points[:, 3] == filter_name)]
 
-        c1 = fits.Column(name='TIME', format='D', array=tab[:, 0])
-        c2 = fits.Column(name='COUNTS', format='D', array=tab[:, 1])
-        c3 = fits.Column(name='COUNTS_ERR', format='D', array=tab[:, 2])
-        c4 = fits.Column(name='FILTER', format='1A', array=tab[:, 3])
-        c5 = fits.Column(name='ROTOR', format='1A', array=tab[:, 4])
-        c6 = fits.Column(name='PHASE', format='D', array=tab[:, 5])
-        c7 = fits.Column(name='AIRMASS', format='D', array=tab[:, 6])
-        c8 = fits.Column(name='ROTANGLE', format='D', array=tab[:, 7])
-        c9 = fits.Column(name='ROTSKYPA', format='D', array=tab[:, 8])
-        c10 = fits.Column(name='EXPTIME', format='D', array=tab[:, 9])
-        c11 = fits.Column(name='SEEING', format='D', array=tab[:, 10])
-        c12 = fits.Column(name='MOON_FRAC', format='D', array=tab[:, 11])
-        c13 = fits.Column(name='MOON_DIST', format='D', array=tab[:, 12])
+            c1 = fits.Column(name='TIME', format='D', array=tab[:, 0])
+            c2 = fits.Column(name='COUNTS', format='D', array=tab[:, 1])
+            c3 = fits.Column(name='COUNTS_ERR', format='D', array=tab[:, 2])
+            c4 = fits.Column(name='FILTER', format='1A', array=tab[:, 3])
+            c5 = fits.Column(name='ROTOR', format='1A', array=tab[:, 4])
+            c6 = fits.Column(name='PHASE', format='D', array=tab[:, 5])
+            c7 = fits.Column(name='AIRMASS', format='D', array=tab[:, 6])
+            c8 = fits.Column(name='ROTANGLE', format='D', array=tab[:, 7])
+            c9 = fits.Column(name='ROTSKYPA', format='D', array=tab[:, 8])
+            c10 = fits.Column(name='EXPTIME', format='D', array=tab[:, 9])
+            c11 = fits.Column(name='SEEING', format='D', array=tab[:, 10])
+            c12 = fits.Column(name='MOON_FRAC', format='D', array=tab[:, 11])
+            c13 = fits.Column(name='MOON_DIST', format='D', array=tab[:, 12])
 
-        cols = fits.ColDefs([c1, c2, c3, c4, c5, c6, c7,
-                             c8, c9, c10, c11, c12, c13])
-        tbhdu = fits.new_table(cols)
-        prihdr = fits.Header()
-        prihdr['OBJECT'] = self.star_name
-        prihdr['TIME'] = cfg.time_key
-        prihdu = fits.PrimaryHDU(header=prihdr)
-        thdulist = fits.HDUList([prihdu, tbhdu])
-        thdulist.writeto(output_dir+(self.star_name)+'.fits', clobber=True)
+            cols = fits.ColDefs([c1, c2, c3, c4, c5, c6, c7,
+                                 c8, c9, c10, c11, c12, c13])
+            tbhdu = fits.new_table(cols)
+            prihdr = fits.Header()
+            prihdr['OBJECT'] = self.star_name
+            prihdr['TIME'] = cfg.time_key
+            prihdu = fits.PrimaryHDU(header=prihdr)
+            thdulist = fits.HDUList([prihdu, tbhdu])
+            thdulist.writeto(output_dir + (self.star_name) + '_' +
+                             filter_name + '.fits', clobber=True)
 
-        txt_header = ('Time, source_counts, err, filter, rotor,
-                      phase, airmass,' 'rotangle, rotskypa, exptime, seeing, moon_frac, moon_dist')
-        np.savetxt(output_dir+(self.star_name)+'.csv', tab,
-                   delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
+            txt_header = ('Time, source_counts, err, filter, rotor, ' +
+                          'phase, airmass,' 'rotangle, rotskypa, exptime, ' +
+                          'seeing, moon_frac, moon_dist')
+            np.savetxt(output_dir + (self.star_name) + '_' + filter_name +
+                       '.csv', tab, delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
 
 
 def cleaning():
@@ -231,15 +234,12 @@ def sources_list_check(sources_file, object_list, sourcesDict):
             print miss, 'not found in source file'
         exit()
 
-def save_not_measured_list(not_measured):
-    pass
-    #np.savetxt(output_dir+'not_measured.dat',
-    #           not_measured, delimiter=' ', fmt="%s") # write name of not measured images to txt
 
 def createObject(object_name, coord_tab):
     star = Star(object_name, coord_tab[0],
                 coord_tab[1], coord_tab[2], coord_tab[3])
     return star
+
 
 cfg = Config()
 output_dir = os.path.join(work_dir, cfg.output_dir_name)
@@ -269,7 +269,8 @@ object_list = object_check(images) #create object list
 sources_list_check(sources_file, object_list, sourcesDict) #check if each object is in source list
 
 for source in sources_file:
-    sources_list.update({source[0]: [source[1], source[2], source[3], source[4]]})
+    sources_list.update({source[0]: [source[1], source[2],
+                                     source[3], source[4]]})
 
 for image in images:
     hdu = fits.open(image, mode='update')
@@ -306,4 +307,3 @@ for obj in star_list.iteritems(): #save output for each object
     obj[1].save_flux_table()
 
 cleaning() #remove temp files
-save_not_measured_list(not_measured)
