@@ -210,23 +210,20 @@ def object_check(images):
 def sources_list_check(sources_file, object_list, sourcesDict):
     temp = []
     miss_object = []
-    objTest = False
     for source in sources_file:
         temp.append(source[0])
-        print source[0]
     for obj in object_list:
-        print 'object', obj
+
+        objTest = False
         if obj in temp:
             objTest = True
         else:
             for row in sourcesDict:
-                print row[1].split(',')
                 if obj in row[1].split(','):
                     objTest = True
                     break
         if objTest == False:
             if obj not in miss_object:
-                print obj
                 miss_object.append(obj)
 
     if len(miss_object) > 0:
@@ -271,8 +268,9 @@ sources_list_check(sources_file, object_list, sourcesDict) #check if each object
 for source in sources_file:
     sources_list.update({source[0]: [source[1], source[2],
                                      source[3], source[4]]})
-
+print sourcesDict
 for image in images:
+    imTest = False
     hdu = fits.open(image, mode='update')
     hdr = hdu[0].header
     data = hdu[0].data
@@ -291,17 +289,23 @@ for image in images:
         try:
             coord_tab = sources_list[object_name]
             star_list.update({object_name: star})
+            objTest = True
         except KeyError:
             for row in sourcesDict:
+                print row
+                print '1', object_name, row[0]
                 if object_name in row[1].split(','):
+                    print '2'
                     coord_tab = sources_list[row[0]]
                     star = createObject(row[0], coord_tab)
-                    star_list.update({object_name:star})
+                    star_list.update({object_name: star})
+                    objTest = True
                     break
-                else:
-                    "something wrong"
-    im.flux_measure()
-
+    if objTest:
+        im.flux_measure()
+    else:
+        print "something wrong"
+        exit()
 
 for obj in star_list.iteritems(): #save output for each object
     obj[1].save_flux_table()
