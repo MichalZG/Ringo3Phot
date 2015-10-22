@@ -30,10 +30,10 @@ class Config():
         self.gain_key = config.get('keywords', 'gain_key')
         self.exp_key = config.get('keywords', 'exp_key')
 
-        #dirs
+        # dirs
         self.output_dir_name = config.get('dirs', 'output_dir')
 
-        #sextractor
+        # sextractor
         self.phot_type = config.get('sextractor', 'phot_type')
         self.verbose_type = config.get('sextractor', 'verbose_type')
         self.detect_tresh = config.getfloat('sextractor', 'detect_tresh')
@@ -54,10 +54,11 @@ class Image:
         self.image_hdu = image_hdu
         self.image_header = image_header
         self.image_data = image_data
-        self.image_base_name = str(self.image_name).split(".")[0] # with dir, without extension
-        self.image_base_base_name = str(self.image_base_name).split('/')[-1] # only file name without dir and extension
+        self.image_base_name = str(self.image_name).split(".")[0]
+        self.image_base_base_name = str(self.image_base_name).split('/')[-1]
 
-    def world_2_pix(self): #convert WCS to pix
+    # convert WCS to pix
+    def world_2_pix(self):
 
         w = WCS(self.image_header)
         px_source, py_source = w.wcs_world2pix(float(star.ra_source),
@@ -70,21 +71,23 @@ class Image:
         file_to_sex = self.image_name
         coo_file_name = 'coo.coo'
         pix_coo_array = self.world_2_pix()
-        np.savetxt(coo_file_name, pix_coo_array, fmt='%f') #save txt file with pix coordinates for sextractor
+        # save txt file with pix coordinates for sextractor
+        np.savetxt(coo_file_name, pix_coo_array, fmt='%f')
 
-        #run sextractor
-        cat = pysex.run(file_to_sex, keepcat=False,
-                        params=['FLUX_BEST', 'FLUXERR_BEST', 'VECTOR_ASSOC(1)'], #values list in sextractor output
-		                conf_args={'VERBOSE_TYPE': cfg.verbose_type,
-                             'BACKPHOTO_TYPE': cfg.backphoto_type,
-	                         'BACKPHOTO_THICK': cfg.backphoto_thick,
-		                     'DETECT_THRESH': cfg.detect_tresh,
-	                         'ANALYSIS_THRESH': cfg.analysis_thresh,
-	                         'GAIN': float(self.image_header[cfg.gain_key]),
-	                         'ASSOC_RADIUS': cfg.assoc_radius,
-	                         'ASSOC_PARAMS': '1,2',
-	                         'ASSOC_DATA': '3',
-                             'ASSOC_NAME': coo_file_name})
+        # run sextractor
+        cat = pysex.run(
+            file_to_sex, keepcat=False,
+            params=['FLUX_BEST', 'FLUXERR_BEST', 'VECTOR_ASSOC(1)'],
+            conf_args={'VERBOSE_TYPE': cfg.verbose_type,
+                       'BACKPHOTO_TYPE': cfg.backphoto_type,
+                       'BACKPHOTO_THICK': cfg.backphoto_thick,
+                       'DETECT_THRESH': cfg.detect_tresh,
+                       'ANALYSIS_THRESH': cfg.analysis_thresh,
+                       'GAIN': float(self.image_header[cfg.gain_key]),
+                       'ASSOC_RADIUS': cfg.assoc_radius,
+                       'ASSOC_PARAMS': '1,2',
+                       'ASSOC_DATA': '3',
+                       'ASSOC_NAME': coo_file_name})
 
         if len(cat) > 0:
             print cat[0][0], cat[1][0]
@@ -97,8 +100,7 @@ class Image:
             print "---------------------------------------------- "
             not_measured.append([self.image_name, self.image_star])
 
-
-    def create_image_tab(self, cat):
+     def create_image_tab(self, cat):
 
         time = self.image_time
         color_filter = str(self.image_filter)
@@ -267,7 +269,7 @@ star_list = {}
 sources_list = {}
 not_measured = []
 
-#read database sources file
+# read database sources file
 sources_file = np.loadtxt(
     os.path.join(script_path, cfg.sources_file),
     dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),
@@ -276,16 +278,17 @@ sources_file = np.loadtxt(
 sourcesDict = np.loadtxt(
     os.path.join(script_path, cfg.sources_dict), dtype='string', delimiter=':')
 
-images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
-object_list = object_check(images) #create object list
-sources_list_check(sources_file, object_list, sourcesDict) #check if each object is in source list
+# create image list
+images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension)))
+# create object list
+object_list = object_check(images)
+# check if each object is in source list
+sources_list_check(sources_file, object_list, sourcesDict)
 
 for source in sources_file:
     sources_list.update({source[0]: [source[1], source[2],
                                      source[3], source[4]]})
-print sourcesDict
 for image in images:
-    imTest = False
     hdu = fits.open(image, mode='update')
     hdr = hdu[0].header
     data = hdu[0].data
@@ -298,7 +301,6 @@ for image in images:
     im = Image(image, object_name, filter_name,
                obs_time, exp_time, hdu, hdr, data)
 
-
     if objectExist(object_name, star_list):
         star = star_list[object_name]
         im.flux_measure()
@@ -308,7 +310,6 @@ for image in images:
         im.flux_measure()
     else:
         trueObjectName = objectInDict(object_name, sourcesDict)
-        print object_name, trueObjectName
         if trueObjectName is not None:
             try:
                 star = star_list[trueObjectName]
@@ -321,8 +322,8 @@ for image in images:
             print 'something wrong :D'
             exit()
 
-
-for obj in star_list.iteritems(): #save output for each object
+# save output for each object
+for obj in star_list.iteritems():
     obj[1].save_flux_table()
-
-cleaning() #remove temp files
+# remove temp files
+cleaning()
