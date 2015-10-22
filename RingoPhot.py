@@ -100,7 +100,7 @@ class Image:
             print "---------------------------------------------- "
             not_measured.append([self.image_name, self.image_star])
 
-     def create_image_tab(self, cat):
+    def create_image_tab(self, cat):
 
         time = self.image_time
         color_filter = str(self.image_filter)
@@ -180,8 +180,9 @@ class Star:
             txt_header = ('Time, source_counts, err, filter, rotor, ' +
                           'phase, airmass,' 'rotangle, rotskypa, exptime, ' +
                           'seeing, moon_frac, moon_dist')
+            # write output to CSV table
             np.savetxt(output_dir + (self.star_name) + '_' + filter_name +
-                       '.csv', tab, delimiter=',', fmt="%s", header=txt_header) # write output to CSV table
+                       '.csv', tab, delimiter=',', fmt="%s", header=txt_header)
 
 
 def cleaning():
@@ -224,7 +225,7 @@ def sources_list_check(sources_file, object_list, sourcesDict):
                 if obj in row[1].split(','):
                     objTest = True
                     break
-        if objTest == False:
+        if objTest is False:
             if obj not in miss_object:
                 miss_object.append(obj)
 
@@ -240,15 +241,18 @@ def createObject(object_name, sources_list):
                 coord_tab[1], coord_tab[2], coord_tab[3])
     return star
 
+
 def objectInSource(object_name, sources_list):
     for source in sources_list:
         if object_name == source:
             return True
 
+
 def objectInDict(object_name, sourcesDict):
     for source in sourcesDict:
         if object_name in source[1].split(','):
             return source[0]
+
 
 def objectExist(object_name, star_list):
     if object_name in star_list:
