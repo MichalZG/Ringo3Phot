@@ -232,10 +232,25 @@ def sources_list_check(sources_file, object_list, sourcesDict):
         exit()
 
 
-def createObject(object_name, coord_tab):
+def createObject(object_name, sources_list):
+    coord_tab = sources_list[object_name]
     star = Star(object_name, coord_tab[0],
                 coord_tab[1], coord_tab[2], coord_tab[3])
     return star
+
+def objectInSource(object_name, sources_list):
+    for source in sources_list:
+        if object_name == source:
+            return True
+
+def objectInDict(object_name, sourcesDict):
+    for source in sourcesDict:
+        if object_name in source[1].split(','):
+            return source[0]
+
+def objectExist(object_name, star_list):
+    if object_name in star_list:
+        return True
 
 
 cfg = Config()
@@ -259,7 +274,7 @@ sources_file = np.loadtxt(
            'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
 
 sourcesDict = np.loadtxt(
-    os.path.join(script_path, cfg.sources_dict), dtype='string', delimiter=' ')
+    os.path.join(script_path, cfg.sources_dict), dtype='string', delimiter=':')
 
 images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension))) #create image list
 object_list = object_check(images) #create object list
@@ -283,29 +298,29 @@ for image in images:
     im = Image(image, object_name, filter_name,
                obs_time, exp_time, hdu, hdr, data)
 
-    if object_name in star_list:
+
+    if objectExist(object_name, star_list):
         star = star_list[object_name]
-    else:
-        try:
-            coord_tab = sources_list[object_name]
-            star_list.update({object_name: star})
-            objTest = True
-        except KeyError:
-            for row in sourcesDict:
-                print row
-                print '1', object_name, row[0]
-                if object_name in row[1].split(','):
-                    print '2'
-                    coord_tab = sources_list[row[0]]
-                    star = createObject(row[0], coord_tab)
-                    star_list.update({object_name: star})
-                    objTest = True
-                    break
-    if objTest:
+        im.flux_measure()
+    elif objectInSource(object_name, sources_list):
+        star = createObject(object_name, sources_list)
+        star_list.update({star.star_name: star})
         im.flux_measure()
     else:
-        print "something wrong"
-        exit()
+        trueObjectName = objectInDict(object_name, sourcesDict)
+        print object_name, trueObjectName
+        if trueObjectName is not None:
+            try:
+                star = star_list[trueObjectName]
+                im.flux_measure()
+            except KeyError:
+                star = createObject(trueObjectName, sources_list)
+                star_list.update({star.star_name: star})
+                im.flux_measure()
+        else:
+            print 'something wrong :D'
+            exit()
+
 
 for obj in star_list.iteritems(): #save output for each object
     obj[1].save_flux_table()
