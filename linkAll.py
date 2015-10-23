@@ -3,7 +3,6 @@ import glob
 import os
 import fnmatch
 
-
 ext = '*.fits'
 outDirName = 'results'
 workPath = os.getcwd()
@@ -22,9 +21,11 @@ def find(pattern, path):
 try:
     os.mkdir(os.path.join(workPath, outDirName))
 except OSError:
-    filesToRemove = glob.glob(os.path.join(workPath, outDirName, ext))
-    for f in filesToRemove:
-        os.remove(f)
+    # unlink all files in results dir
+    files = glob.glob(os.path.join(workPath, outDirName, '*'))
+    for f in files:
+        if os.path.islink(f):
+            os.unlink(f)
 
 fileList = find(ext, workPath)
 for fileToLink in fileList:
