@@ -188,9 +188,7 @@ class Star:
 def cleaning():
     print 'cleaning.....'
     files = glob.glob(os.path.join(work_dir, '*'))
-    print cfg.files_to_rm
     for fi in files:
-        print fi.split('.')[-1]
         if fi.split('.')[-1] in cfg.files_to_rm:
             os.remove(fi)
         elif os.path.islink(fi):
