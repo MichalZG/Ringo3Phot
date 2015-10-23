@@ -187,10 +187,16 @@ class Star:
 
 def cleaning():
     print 'cleaning.....'
-    for i in cfg.files_to_rm:
-        files = glob.glob(os.path.join(work_dir, i))
-        for j in files:
-            os.remove(j)
+    files = glob.glob(os.path.join(work_dir, '*'))
+    print cfg.files_to_rm
+    for fi in files:
+        print fi.split('.')[-1]
+        if fi.split('.')[-1] in cfg.files_to_rm:
+            os.remove(fi)
+        elif os.path.islink(fi):
+            os.unlink(fi)
+        else:
+            pass
 
 
 def object_check(images):
@@ -213,7 +219,6 @@ def object_check(images):
 def sources_list_check(sources_list, object_list, sourcesDict):
     miss_object = []
     for obj in object_list:
-        print obj, objectInDict(obj, sourcesDict)
         if objectInSource(obj, sources_list):
             pass
         elif objectInDict(obj, sourcesDict) is not None:
@@ -242,9 +247,7 @@ def objectInSource(object_name, sources_list):
 
 def objectInDict(object_name, sourcesDict):
     for source in sourcesDict:
-        print '2', source
         if object_name in source[1].split(','):
-            print '1'
             return source[0]
 
 
