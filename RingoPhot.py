@@ -210,28 +210,20 @@ def object_check(images):
     return object_list
 
 
-def sources_list_check(sources_file, object_list, sourcesDict):
-    temp = []
+def sources_list_check(sources_list, object_list, sourcesDict):
     miss_object = []
-    for source in sources_file:
-        temp.append(source[0])
     for obj in object_list:
-
-        objTest = False
-        if obj in temp:
-            objTest = True
+        print objectInDict(obj, sourcesDict)
+        if objectInSource(obj, sources_list):
+            pass
+        elif objectInDict(obj, sourcesDict) is not None:
+            pass
         else:
-            for row in sourcesDict:
-                if obj in row[1].split(','):
-                    objTest = True
-                    break
-        if objTest is False:
-            if obj not in miss_object:
-                miss_object.append(obj)
+            miss_object.append(obj)
 
     if len(miss_object) > 0:
         for miss in miss_object:
-            print miss, 'not found in source file'
+            print miss, 'not found in source file or source dict'
         exit()
 
 
@@ -259,6 +251,27 @@ def objectExist(object_name, star_list):
         return True
 
 
+def loadSourcesList():
+    sources_list = {}
+    sources_file = np.loadtxt(
+        os.path.join(script_path, cfg.sources_file),
+        dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),
+               'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
+    for source in sources_file:
+        sources_list.update({source[0]: [source[1], source[2],
+                                         source[3], source[4]]})
+    return sources_list
+
+
+def loadSourcesDict():
+    # read database sources file
+    sourcesDict = np.loadtxt(
+        os.path.join(script_path, cfg.sources_dict),
+        dtype='string', delimiter=':')
+
+    return sourcesDict
+
+
 cfg = Config()
 output_dir = os.path.join(work_dir, cfg.output_dir_name)
 
@@ -270,28 +283,19 @@ except OSError:
 
 
 star_list = {}
-sources_list = {}
 not_measured = []
 
-# read database sources file
-sources_file = np.loadtxt(
-    os.path.join(script_path, cfg.sources_file),
-    dtype={'names': ('name', 'ra_source', 'dec_source', 't0', 'per'),
-           'formats': ('S20', 'f8', 'f8', 'f8', 'f8')})
-
-sourcesDict = np.loadtxt(
-    os.path.join(script_path, cfg.sources_dict), dtype='string', delimiter=':')
+sources_list = loadSourcesList()
+sourcesDict = loadSourcesDict()
 
 # create image list
 images = sorted(glob.glob(os.path.join(work_dir, '*'+cfg.extension)))
 # create object list
 object_list = object_check(images)
 # check if each object is in source list
-sources_list_check(sources_file, object_list, sourcesDict)
+sources_list_check(sources_list, object_list, sourcesDict)
 
-for source in sources_file:
-    sources_list.update({source[0]: [source[1], source[2],
-                                     source[3], source[4]]})
+
 for image in images:
     hdu = fits.open(image, mode='update')
     hdr = hdu[0].header
