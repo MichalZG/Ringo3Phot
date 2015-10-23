@@ -213,7 +213,7 @@ def object_check(images):
 def sources_list_check(sources_list, object_list, sourcesDict):
     miss_object = []
     for obj in object_list:
-        print objectInDict(obj, sourcesDict)
+        print obj, objectInDict(obj, sourcesDict)
         if objectInSource(obj, sources_list):
             pass
         elif objectInDict(obj, sourcesDict) is not None:
@@ -242,7 +242,9 @@ def objectInSource(object_name, sources_list):
 
 def objectInDict(object_name, sourcesDict):
     for source in sourcesDict:
+        print '2', source
         if object_name in source[1].split(','):
+            print '1'
             return source[0]
 
 
