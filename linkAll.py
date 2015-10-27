@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 import glob
 import os
+import shutil
 import fnmatch
 
 ext = '*.fits'
 outDirName = 'results'
+extToRm = ['csv', 'pdf', 'fits']
 workPath = os.getcwd()
-
+script_path = os.path.dirname(os.path.realpath(__file__))
 
 def find(pattern, path):
     result = []
@@ -26,6 +28,10 @@ except OSError:
     for f in files:
         if os.path.islink(f):
             os.unlink(f)
+	elif f.split('.')[-1] in extToRm:
+	    os.remove(f)
+
+    shutil.copy(os.path.join(script_path, 'ephem.csv'), os.path.join(workPath, outDirName))
 
 fileList = find(ext, workPath)
 for fileToLink in fileList:
