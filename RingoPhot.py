@@ -20,6 +20,8 @@ class Config():
         config.read(os.path.join(script_path, 'config.cfg'))
         self.config = config
 
+        # main
+        self.comp = config.getboolean('main', 'comp')
         # files
         self.extension = config.get('files', 'extension')
         self.files_to_rm = config.get('files', 'files_to_rm').split(',')
@@ -298,6 +300,20 @@ object_list = object_check(images)
 # check if each object is in source list
 sources_list_check(sources_list, object_list, sourcesDict)
 
+if cfg.comp:
+    print("***WARNING*** \n" +
+          "Comp mode is ON. " +
+          "Program will not check if comp " +
+          "object exist in source file. " +
+          "Check if comp stars exist in source " +
+          "file for all object for measure " +
+          "or set comp = FALSE in conf file. \n" +
+          "**********************************\n")
+
+    raw_input("press any key to continue")
+    iterTab = ["", "_1", "_2", "_3", "_4"]
+else:
+    iterTab = [""]
 
 for image in images:
     hdu = fits.open(image, mode='update')
@@ -309,29 +325,30 @@ for image in images:
     obs_time = hdr[cfg.time_key]
     exp_time = hdr[cfg.exp_key]
 
-    im = Image(image, object_name, filter_name,
-               obs_time, exp_time, hdu, hdr, data)
+    for i in iterTab:
+        im = Image(image, object_name+i, filter_name,
+                   obs_time, exp_time, hdu, hdr, data)
 
-    if objectExist(object_name, star_list):
-        star = star_list[object_name]
-        im.flux_measure()
-    elif objectInSource(object_name, sources_list):
-        star = createObject(object_name, sources_list)
-        star_list.update({star.star_name: star})
-        im.flux_measure()
-    else:
-        trueObjectName = objectInDict(object_name, sourcesDict)
-        if trueObjectName is not None:
-            try:
-                star = star_list[trueObjectName]
-                im.flux_measure()
-            except KeyError:
-                star = createObject(trueObjectName, sources_list)
-                star_list.update({star.star_name: star})
-                im.flux_measure()
+        if objectExist(object_name+i, star_list):
+            star = star_list[object_name+i]
+            im.flux_measure()
+        elif objectInSource(object_name+i, sources_list):
+            star = createObject(object_name+i, sources_list)
+            star_list.update({star.star_name: star})
+            im.flux_measure()
         else:
-            print 'something wrong :D'
-            exit()
+            trueObjectName = objectInDict(object_name, sourcesDict)
+            if trueObjectName is not None:
+                try:
+                    star = star_list[trueObjectName+i]
+                    im.flux_measure()
+                except KeyError:
+                    star = createObject(trueObjectName+i, sources_list)
+                    star_list.update({star.star_name: star})
+                    im.flux_measure()
+            else:
+                print 'something wrong :D'
+                exit()
 
 # save output for each object
 for obj in star_list.iteritems():
